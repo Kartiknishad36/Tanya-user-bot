@@ -1,6 +1,6 @@
 """
 Tanya UserBot - Advanced Telegram UserBot for Render
-Made with ❤️ for powerful automation
+Dark Premium Edition
 """
 
 import asyncio
@@ -25,7 +25,6 @@ from config import (
     CMD_PREFIX,
 )
 
-# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -33,7 +32,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("TanyaUserBot")
 
-# ========== KEEP-ALIVE SERVER (Required for Render Web Service) ==========
 app = Flask(__name__)
 
 
@@ -43,7 +41,7 @@ def home():
         "status": "alive",
         "bot": BOT_NAME,
         "version": BOT_VERSION,
-        "message": "Tanya UserBot is running successfully on Render 🚀",
+        "message": "Tanya UserBot Premium Dark - Running on Render",
     }, 200
 
 
@@ -53,17 +51,15 @@ def health():
 
 
 def run_flask():
-    """Run Flask keep-alive server in a separate thread"""
     app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
 
 
-# ========== TELEGRAM CLIENT ==========
 if not STRING_SESSION:
-    logger.error("❌ STRING_SESSION is missing! Generate one using string_session.py")
+    logger.error("STRING_SESSION is missing! Generate one using string_session.py")
     sys.exit(1)
 
 if not API_ID or not API_HASH:
-    logger.error("❌ API_ID or API_HASH is missing!")
+    logger.error("API_ID or API_HASH is missing!")
     sys.exit(1)
 
 client = TelegramClient(
@@ -77,7 +73,6 @@ client = TelegramClient(
 
 
 async def load_plugins():
-    """Load all plugins from plugins/ directory"""
     plugins_dir = os.path.join(os.path.dirname(__file__), "plugins")
     loaded = 0
     failed = 0
@@ -86,64 +81,62 @@ async def load_plugins():
         if filename.endswith(".py") and not filename.startswith("_"):
             plugin_name = filename[:-3]
             try:
-                # Import the plugin module
                 module = __import__(f"plugins.{plugin_name}", fromlist=[plugin_name])
-                # If plugin has a register function, call it
                 if hasattr(module, "register"):
                     module.register(client)
                 loaded += 1
-                logger.info(f"✅ Loaded plugin: {plugin_name}")
+                logger.info(f"Loaded plugin: {plugin_name}")
             except Exception as e:
                 failed += 1
-                logger.error(f"❌ Failed to load {plugin_name}: {e}")
+                logger.error(f"Failed to load {plugin_name}: {e}")
 
-    logger.info(f"📦 Plugins loaded: {loaded} | Failed: {failed}")
+    logger.info(f"Plugins loaded: {loaded} | Failed: {failed}")
     return loaded
 
 
 async def main():
-    """Main entry point"""
-    logger.info(f"🚀 Starting {BOT_NAME} v{BOT_VERSION}...")
+    logger.info(f"Starting {BOT_NAME} v{BOT_VERSION}...")
 
-    # Start Flask keep-alive in background thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    logger.info(f"🌐 Keep-alive server started on port {PORT}")
+    logger.info(f"Keep-alive server started on port {PORT}")
 
     try:
         await client.start()
         me = await client.get_me()
-        logger.info(f"✅ Logged in as: {me.first_name} (@{me.username or 'NoUsername'}) | ID: {me.id}")
+        logger.info(f"Logged in as: {me.first_name} (@{me.username or 'NoUsername'}) | ID: {me.id}")
 
-        # Set owner if not set
         if not OWNER_ID:
-            logger.warning(f"⚠️ OWNER_ID not set. Using logged-in user ({me.id}) as owner.")
+            logger.warning(f"OWNER_ID not set. Using logged-in user ({me.id}) as owner.")
 
-        # Load all plugins
         await load_plugins()
 
-        # Notify owner
         try:
             await client.send_message(
                 "me",
-                f"**🤖 {BOT_NAME} v{BOT_VERSION} Started Successfully!**\n\n"
-                f"**User:** `{me.first_name}`\n"
-                f"**Prefix:** `{CMD_PREFIX}`\n"
-                f"**Port:** `{PORT}`\n"
-                f"**Status:** Running on Render 🚀\n\n"
-                f"Type `{CMD_PREFIX}help` to see all commands.",
+                f"\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n"
+                f"\u2551   \U0001f311 TANYA USERBOT STARTED     \u2551\n"
+                f"\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n"
+                f"**\u26a1 Status** \u00bb `ONLINE`\n"
+                f"**\U0001f464 User** \u00bb `{me.first_name}`\n"
+                f"**\U0001f3f7\ufe0f Version** \u00bb `{BOT_VERSION}`\n"
+                f"**\U0001f539 Prefix** \u00bb `{CMD_PREFIX}`\n"
+                f"**\U0001f310 Port** \u00bb `{PORT}`\n\n"
+                f"**\U0001f311 Dark \u2022 Premium \u2022 Powerful**\n\n"
+                f"Type `{CMD_PREFIX}help` for commands.\n"
+                f"\u2022\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Tanya UserBot \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2022",
             )
         except Exception:
             pass
 
-        logger.info("🎉 Tanya UserBot is fully operational!")
+        logger.info("Tanya UserBot is fully operational!")
         await client.run_until_disconnected()
 
     except AuthKeyError:
-        logger.error("❌ Invalid STRING_SESSION! Please generate a new one.")
+        logger.error("Invalid STRING_SESSION! Please generate a new one.")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
+        logger.error(f"Fatal error: {e}")
         raise
 
 
@@ -151,7 +144,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("👋 Shutting down Tanya UserBot...")
+        logger.info("Shutting down Tanya UserBot...")
     except Exception as e:
-        logger.error(f"💥 Crash: {e}")
+        logger.error(f"Crash: {e}")
         sys.exit(1)
