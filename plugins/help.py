@@ -1,83 +1,30 @@
 """
-Help menu plugin
+Help menu plugin - Updated for v2.0 with all modules
 """
 
-from telethon import events, Button
-from config import CMD_PREFIX, BOT_NAME, BOT_VERSION
+from telethon import events
+from config import CMD_PREFIX, BOT_NAME
+from core.version import __version__
 from utils.helpers import edit_or_reply, command_pattern
 
 HELP_TEXT = {
-    "alive": f"""
-**🟢 Alive Module**
-
-`{CMD_PREFIX}alive` - Check if bot is alive + system stats
-`{CMD_PREFIX}ping` - Check response speed
-`{CMD_PREFIX}stats` - Detailed system statistics
-""",
-    "admin": f"""
-**🛡️ Admin Tools**
-
-`{CMD_PREFIX}ban` - Ban a user (reply or username)
-`{CMD_PREFIX}unban` - Unban a user
-`{CMD_PREFIX}kick` - Kick a user
-`{CMD_PREFIX}mute` - Mute a user
-`{CMD_PREFIX}unmute` - Unmute a user
-`{CMD_PREFIX}promote` - Promote to admin
-`{CMD_PREFIX}demote` - Demote admin
-`{CMD_PREFIX}purge` - Delete messages (reply to start)
-`{CMD_PREFIX}del` - Delete replied message
-`{CMD_PREFIX}pin` - Pin a message
-`{CMD_PREFIX}unpin` - Unpin message
-""",
-    "utils": f"""
-**🛠️ Utilities**
-
-`{CMD_PREFIX}id` - Get user/chat ID
-`{CMD_PREFIX}info` - Get detailed user info
-`{CMD_PREFIX}whois` - Whois of replied user
-`{CMD_PREFIX}tr <lang>` - Translate text (reply)
-`{CMD_PREFIX}tts` - Text to speech
-`{CMD_PREFIX}qr` - Generate QR code
-""",
-    "media": f"""
-**📥 Media Tools**
-
-`{CMD_PREFIX}dl` - Download media (reply)
-`{CMD_PREFIX}yt` - Download YouTube video/audio
-`{CMD_PREFIX}song` - Download song by name
-""",
-    "ai": f"""
-**🤖 AI Features**
-
-`{CMD_PREFIX}ai <query>` - Ask Gemini / OpenAI
-`{CMD_PREFIX}gemini <query>` - Google Gemini
-`{CMD_PREFIX}gpt <query>` - ChatGPT
-""",
-    "fun": f"""
-**🎉 Fun & Entertainment**
-
-`{CMD_PREFIX}quote` - Random inspirational quote
-`{CMD_PREFIX}joke` - Random joke
-`{CMD_PREFIX}meme` - Random meme
-`{CMD_PREFIX}truth` - Truth question
-`{CMD_PREFIX}dare` - Dare challenge
-""",
-    "system": f"""
-**⚙️ System (Owner Only)**
-
-`{CMD_PREFIX}eval` - Evaluate Python code
-`{CMD_PREFIX}exec` - Execute shell command
-`{CMD_PREFIX}restart` - Restart the bot
-`{CMD_PREFIX}logs` - Get recent logs
-""",
-    "pm": f"""
-**💬 PM Permit**
-
-`{CMD_PREFIX}approve` - Approve user for PM
-`{CMD_PREFIX}disapprove` - Disapprove user
-`{CMD_PREFIX}block` - Block user
-`{CMD_PREFIX}unblock` - Unblock user
-""",
+    "alive": f"**🟢 Alive**\n`{CMD_PREFIX}alive` `{CMD_PREFIX}ping` `{CMD_PREFIX}stats` `{CMD_PREFIX}sysinfo`",
+    "admin": f"**🛡️ Admin**\n`{CMD_PREFIX}ban` `{CMD_PREFIX}kick` `{CMD_PREFIX}mute` `{CMD_PREFIX}promote` `{CMD_PREFIX}purge` `{CMD_PREFIX}pin` `{CMD_PREFIX}lock`",
+    "tag": f"**📢 Tag**\n`{CMD_PREFIX}tagall` `{CMD_PREFIX}all` `{CMD_PREFIX}admin`",
+    "spam": f"**💣 Spam/Raid**\n`{CMD_PREFIX}spam` `{CMD_PREFIX}delayspam` `{CMD_PREFIX}raid` `{CMD_PREFIX}replyraid` `{CMD_PREFIX}cspam`",
+    "auto": f"**🤖 Auto**\n`{CMD_PREFIX}autoreply` `{CMD_PREFIX}filter` `{CMD_PREFIX}filters` `{CMD_PREFIX}listreply`",
+    "afk": f"**💤 AFK**\n`{CMD_PREFIX}afk` `{CMD_PREFIX}unafk`",
+    "notes": f"**📝 Notes**\n`{CMD_PREFIX}save` `{CMD_PREFIX}get` `{CMD_PREFIX}clear` `{CMD_PREFIX}notes`",
+    "welcome": f"**👋 Welcome**\n`{CMD_PREFIX}setwelcome` `{CMD_PREFIX}setgoodbye` `{CMD_PREFIX}clearwelcome`",
+    "gban": f"**🔨 GBan**\n`{CMD_PREFIX}gban` `{CMD_PREFIX}ungban` `{CMD_PREFIX}gbanlist` `{CMD_PREFIX}addsudo`",
+    "art": f"**🎨 Art**\n`{CMD_PREFIX}font` `{CMD_PREFIX}ascii` `{CMD_PREFIX}flip` `{CMD_PREFIX}vapor` `{CMD_PREFIX}carbon` `{CMD_PREFIX}zalgo`",
+    "utils": f"**🛠️ Utils**\n`{CMD_PREFIX}id` `{CMD_PREFIX}info` `{CMD_PREFIX}qr` `{CMD_PREFIX}calc` `{CMD_PREFIX}weather` `{CMD_PREFIX}paste` `{CMD_PREFIX}remind`",
+    "media": f"**📥 Media**\n`{CMD_PREFIX}dl` `{CMD_PREFIX}yt` `{CMD_PREFIX}song`",
+    "ai": f"**🤖 AI**\n`{CMD_PREFIX}ai` `{CMD_PREFIX}gemini` `{CMD_PREFIX}gpt`",
+    "fun": f"**🎉 Fun**\n`{CMD_PREFIX}quote` `{CMD_PREFIX}joke` `{CMD_PREFIX}meme` `{CMD_PREFIX}ship` `{CMD_PREFIX}decide`",
+    "broadcast": f"**📡 Broadcast**\n`{CMD_PREFIX}broadcast` `{CMD_PREFIX}gcast` `{CMD_PREFIX}usercast`",
+    "system": f"**⚙️ System**\n`{CMD_PREFIX}eval` `{CMD_PREFIX}exec` `{CMD_PREFIX}restart` `{CMD_PREFIX}clone`",
+    "moderation": f"**🛡️ Mod**\n`{CMD_PREFIX}setflood` `{CMD_PREFIX}addblacklist` `{CMD_PREFIX}blacklist`",
 }
 
 
@@ -90,24 +37,16 @@ def register(client):
             await edit_or_reply(event, HELP_TEXT[args])
             return
 
-        # Main help menu
         text = f"""
-**🤖 {BOT_NAME} v{BOT_VERSION} - Help Menu**
+**🤖 {BOT_NAME} v{__version__} - Help Menu**
 
-**Available Modules:**
+**Modules (type `{CMD_PREFIX}help <name>`):**
 
-• `{CMD_PREFIX}help alive` - Alive, Ping, Stats
-• `{CMD_PREFIX}help admin` - Admin tools
-• `{CMD_PREFIX}help utils` - Utility commands
-• `{CMD_PREFIX}help media` - Media download/upload
-• `{CMD_PREFIX}help ai` - AI features
-• `{CMD_PREFIX}help fun` - Fun commands
-• `{CMD_PREFIX}help system` - System commands
-• `{CMD_PREFIX}help pm` - PM Permit
+• `alive` `admin` `tag` `spam` `auto`
+• `afk` `notes` `welcome` `gban` `art`
+• `utils` `media` `ai` `fun` `broadcast`
+• `system` `moderation`
 
-**Prefix:** `{CMD_PREFIX}`
-**Total Commands:** 50+
-
-Type `{CMD_PREFIX}help <module>` for detailed commands.
+**Prefix:** `{CMD_PREFIX}` | **Commands:** 100+
 """
         await edit_or_reply(event, text)
