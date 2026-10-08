@@ -1,6 +1,6 @@
 """
-Tanya UserBot - Advanced Telegram UserBot for Render
-Dark Premium Edition
+Tanya UserBot v2.0 — Render Ready
+Dark • Premium • Stylish
 """
 
 import asyncio
@@ -15,34 +15,23 @@ from telethon.sessions import StringSession
 from telethon.errors import AuthKeyError
 
 from config import (
-    API_ID,
-    API_HASH,
-    STRING_SESSION,
-    PORT,
-    BOT_NAME,
-    BOT_VERSION,
-    OWNER_ID,
-    CMD_PREFIX,
+    API_ID, API_HASH, STRING_SESSION, PORT,
+    BOT_NAME, BOT_VERSION, OWNER_ID, CMD_PREFIX,
 )
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
-logger = logging.getLogger("TanyaUserBot")
+logger = logging.getLogger("Tanya")
 
 app = Flask(__name__)
 
 
 @app.route("/")
 def home():
-    return {
-        "status": "alive",
-        "bot": BOT_NAME,
-        "version": BOT_VERSION,
-        "message": "Tanya UserBot is running on Render",
-    }, 200
+    return {"status": "online", "bot": BOT_NAME, "version": BOT_VERSION}, 200
 
 
 @app.route("/health")
@@ -56,149 +45,156 @@ def run_flask():
 
 client = None
 
+PLUGIN_MODULES = [
+    "core_commands",
+    "help",
+    "userinfo",
+    "admin",
+    "tagall",
+    "spam",
+    "raid",
+    "afk",
+    "notes",
+    "filters",
+    "autoreply",
+    "welcome",
+    "gban",
+    "art",
+    "ai",
+    "media",
+    "fun",
+    "broadcast",
+    "system",
+    "pmpermit",
+    "porn",
+    "alive",
+    "utils",
+    "weather",
+    "remind",
+    "clone",
+    "paste",
+    "antiflood",
+    "blacklist",
+    "locks",
+    "sudo",
+]
 
-async def load_plugins(tg_client):
+
+async def load_all_plugins(tg_client):
     root = os.path.dirname(os.path.abspath(__file__))
     if root not in sys.path:
         sys.path.insert(0, root)
 
     plugins_dir = os.path.join(root, "plugins")
-    loaded = 0
-    failed = 0
-    failed_list = []
+    loaded, failed = [], []
 
-    if not os.path.isdir(plugins_dir):
-        logger.warning("plugins/ folder not found")
-        return 0
+    for name in PLUGIN_MODULES:
+        path = os.path.join(plugins_dir, f"{name}.py")
+        if not os.path.isfile(path):
+            continue
+        try:
+            mod = __import__(f"plugins.{name}", fromlist=[name])
+            if hasattr(mod, "register"):
+                mod.register(tg_client)
+                loaded.append(name)
+                logger.info(f"OK {name}")
+        except Exception as e:
+            failed.append(name)
+            logger.error(f"FAIL {name}: {type(e).__name__}: {e}")
 
-    for filename in sorted(os.listdir(plugins_dir)):
-        if filename.endswith(".py") and not filename.startswith("_"):
-            plugin_name = filename[:-3]
-            try:
-                module = __import__(f"plugins.{plugin_name}", fromlist=[plugin_name])
-                if hasattr(module, "register"):
-                    module.register(tg_client)
-                    loaded += 1
-                    logger.info(f"Loaded plugin: {plugin_name}")
-                else:
-                    logger.warning(f"No register() in {plugin_name}")
-            except Exception as e:
-                failed += 1
-                failed_list.append(plugin_name)
-                logger.error(f"Failed to load {plugin_name}: {type(e).__name__}: {e}")
+    if os.path.isdir(plugins_dir):
+        for f in sorted(os.listdir(plugins_dir)):
+            if f.endswith(".py") and not f.startswith("_"):
+                name = f[:-3]
+                if name in loaded or name in failed:
+                    continue
+                try:
+                    mod = __import__(f"plugins.{name}", fromlist=[name])
+                    if hasattr(mod, "register"):
+                        mod.register(tg_client)
+                        loaded.append(name)
+                        logger.info(f"OK {name}")
+                except Exception as e:
+                    failed.append(name)
+                    logger.error(f"FAIL {name}: {e}")
 
-    logger.info(f"Plugins loaded: {loaded} | Failed: {failed}")
-    if failed_list:
-        logger.error(f"Failed plugins: {', '.join(failed_list)}")
-    return loaded
+    logger.info(f"Loaded: {len(loaded)} | Failed: {len(failed)}")
+    if failed:
+        logger.warning(f"Failed: {', '.join(failed)}")
+    return len(loaded)
 
 
-def register_builtin_commands(tg_client):
-    prefix = CMD_PREFIX
+def register_emergency_commands(tg_client):
+    p = CMD_PREFIX
 
-    @tg_client.on(events.NewMessage(pattern=rf"^{prefix}ping$", outgoing=True))
-    async def builtin_ping(event):
-        await event.edit(f"**Pong!** `{BOT_NAME}` is alive")
+    @tg_client.on(events.NewMessage(pattern=rf"^{p}ping$", outgoing=True))
+    async def _ping(e):
+        await e.edit(f"**Pong!** `{BOT_NAME}` OK")
 
-    @tg_client.on(events.NewMessage(pattern=rf"^{prefix}alive$", outgoing=True))
-    async def builtin_alive(event):
+    @tg_client.on(events.NewMessage(pattern=rf"^{p}alive$", outgoing=True))
+    async def _alive(e):
         me = await tg_client.get_me()
-        await event.edit(
+        await e.edit(
             f"**{BOT_NAME}**\n"
-            f"**Status** \u00bb `ONLINE`\n"
-            f"**User** \u00bb `{me.first_name}`\n"
-            f"**Version** \u00bb `{BOT_VERSION}`\n"
-            f"**Prefix** \u00bb `{prefix}`"
+            f"Status » `ONLINE`\n"
+            f"User » `{me.first_name}`\n"
+            f"Version » `{BOT_VERSION}`\n"
+            f"Prefix » `{p}`"
         )
 
-    @tg_client.on(events.NewMessage(pattern=rf"^{prefix}help(?: |$)", outgoing=True))
-    async def builtin_help(event):
-        text = (
-            f"**{BOT_NAME} Help**\n\n"
-            f"`{prefix}ping` \u2014 Check bot\n"
-            f"`{prefix}alive` \u2014 Status\n"
-            f"`{prefix}help` \u2014 This menu\n"
-            f"`{prefix}info` \u2014 User info\n"
-            f"`{prefix}id` \u2014 Get IDs\n\n"
-            f"**Prefix:** `{prefix}` | **v{BOT_VERSION}**"
-        )
-        await event.edit(text)
-
-    @tg_client.on(events.NewMessage(pattern=r"^/help(?: |$)", outgoing=True))
-    async def builtin_slash_help(event):
-        await builtin_help(event)
-
-    @tg_client.on(events.NewMessage(outgoing=True))
-    async def debug_outgoing(event):
-        text = event.raw_text or ""
-        if text.startswith(prefix) or text.startswith("/"):
-            logger.info(f"CMD received: {text[:80]!r} chat={event.chat_id}")
-
-    logger.info("Built-in commands registered: .ping .alive .help")
+    logger.info("Emergency: .ping .alive")
 
 
 async def main():
     global client
+    logger.info(f"Starting {BOT_NAME} v{BOT_VERSION}")
 
-    logger.info(f"Starting {BOT_NAME} v{BOT_VERSION}...")
-
-    if not STRING_SESSION:
-        logger.error("STRING_SESSION is missing!")
-        sys.exit(1)
-    if not API_ID or not API_HASH:
-        logger.error("API_ID or API_HASH is missing!")
+    if not STRING_SESSION or not API_ID or not API_HASH:
+        logger.error("Missing API_ID / API_HASH / STRING_SESSION")
         sys.exit(1)
 
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    logger.info(f"Keep-alive server started on port {PORT}")
+    threading.Thread(target=run_flask, daemon=True).start()
+    logger.info(f"Keep-alive port {PORT}")
 
     client = TelegramClient(
         StringSession(STRING_SESSION),
         API_ID,
         API_HASH,
-        device_model="Tanya UserBot",
-        system_version="Render Cloud",
+        device_model="TanyaUserBot",
+        system_version="Render",
         app_version=BOT_VERSION,
     )
 
     try:
         await client.start()
         me = await client.get_me()
-        logger.info(
-            f"Logged in as: {me.first_name} (@{me.username or 'NoUsername'}) | ID: {me.id}"
-        )
+        logger.info(f"Logged in: {me.first_name} | {me.id}")
 
-        if not OWNER_ID:
-            logger.warning(f"OWNER_ID not set. Using {me.id} as owner.")
-
-        register_builtin_commands(client)
-        await load_plugins(client)
+        register_emergency_commands(client)
+        count = await load_all_plugins(client)
 
         try:
-            if not getattr(client, "_tanya_started_msg", False):
-                client._tanya_started_msg = True
-                await client.send_message(
-                    "me",
-                    f"**{BOT_NAME} STARTED**\n\n"
-                    f"**Status** \u00bb `ONLINE`\n"
-                    f"**User** \u00bb `{me.first_name}`\n"
-                    f"**Version** \u00bb `{BOT_VERSION}`\n"
-                    f"**Prefix** \u00bb `{CMD_PREFIX}`\n"
-                    f"**Port** \u00bb `{PORT}`\n\n"
-                    f"Type `{CMD_PREFIX}ping` or `{CMD_PREFIX}help`",
-                )
-        except Exception as e:
-            logger.warning(f"Start message failed: {e}")
+            await client.send_message(
+                "me",
+                f"**{BOT_NAME} STARTED**\n\n"
+                f"**Status** » `ONLINE`\n"
+                f"**User** » `{me.first_name}`\n"
+                f"**Version** » `{BOT_VERSION}`\n"
+                f"**Prefix** » `{CMD_PREFIX}`\n"
+                f"**Plugins** » `{count}`\n\n"
+                f"Try `{CMD_PREFIX}ping` or `{CMD_PREFIX}help`",
+            )
+        except Exception:
+            pass
 
-        logger.info("Tanya UserBot is fully operational!")
+        logger.info("Fully operational!")
         await client.run_until_disconnected()
 
     except AuthKeyError:
-        logger.error("Invalid STRING_SESSION!")
+        logger.error("Invalid STRING_SESSION")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error(f"Fatal: {e}")
         raise
     finally:
         if client:
@@ -213,14 +209,13 @@ if __name__ == "__main__":
         try:
             loop = asyncio.get_event_loop()
             if loop.is_closed():
-                raise RuntimeError("closed")
+                raise RuntimeError
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-
         loop.run_until_complete(main())
     except KeyboardInterrupt:
-        logger.info("Shutting down...")
+        logger.info("Bye!")
     except Exception as e:
         logger.error(f"Crash: {e}")
         sys.exit(1)
