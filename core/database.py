@@ -30,7 +30,7 @@ class Database:
                 "filters": {},
                 "afk": {},
                 "approved": [],
-                "blacklist": [],
+                "blacklist": {},
                 "whitelist": [],
                 "gbans": [],
                 "sudo": [],
@@ -41,6 +41,11 @@ class Database:
                 "warns": {},
                 "settings": {},
             }
+            self._save()
+
+        # Migrate wrong types
+        if isinstance(self._data.get("blacklist"), list):
+            self._data["blacklist"] = {}
             self._save()
 
     def _save(self):
@@ -80,71 +85,8 @@ class Database:
             return True
         return False
 
-    def add_filter(self, chat_id: int, keyword: str, response: str):
-        filters = self._data.setdefault("filters", {})
-        chat_f = filters.setdefault(str(chat_id), {})
-        chat_f[keyword.lower()] = response
-        self._save()
-
-    def get_filters(self, chat_id: int) -> Dict[str, str]:
-        return self._data.get("filters", {}).get(str(chat_id), {})
-
-    def delete_filter(self, chat_id: int, keyword: str) -> bool:
-        filters = self._data.get("filters", {}).get(str(chat_id), {})
-        if keyword.lower() in filters:
-            del filters[keyword.lower()]
-            self._save()
-            return True
-        return False
-
-    def set_afk(self, user_id: int, reason: str = ""):
-        afk = self._data.setdefault("afk", {})
-        afk[str(user_id)] = {"reason": reason, "time": __import__("time").time()}
-        self._save()
-
-    def get_afk(self, user_id: int) -> Optional[dict]:
-        return self._data.get("afk", {}).get(str(user_id))
-
-    def remove_afk(self, user_id: int):
-        afk = self._data.get("afk", {})
-        if str(user_id) in afk:
-            del afk[str(user_id)]
-            self._save()
-
-    def add_auto_reply(self, trigger: str, reply: str):
-        ar = self._data.setdefault("auto_reply", {})
-        ar[trigger.lower()] = reply
-        self._save()
-
-    def get_auto_replies(self) -> Dict[str, str]:
-        return self._data.get("auto_reply", {})
-
-    def delete_auto_reply(self, trigger: str) -> bool:
-        ar = self._data.get("auto_reply", {})
-        if trigger.lower() in ar:
-            del ar[trigger.lower()]
-            self._save()
-            return True
-        return False
-
-    def add_gban(self, user_id: int, reason: str = ""):
-        gbans = self._data.setdefault("gbans", [])
-        entry = {"id": user_id, "reason": reason}
-        if not any(g["id"] == user_id for g in gbans):
-            gbans.append(entry)
-            self._save()
-
-    def remove_gban(self, user_id: int) -> bool:
-        gbans = self._data.get("gbans", [])
-        new = [g for g in gbans if g["id"] != user_id]
-        if len(new) != len(gbans):
-            self._data["gbans"] = new
-            self._save()
-            return True
-        return False
-
-    def is_gbanned(self, user_id: int) -> bool:
-        return any(g["id"] == user_id for g in self._data.get("gbans", []))
+    def is_sudo(self, user_id: int) -> bool:
+        return user_id in self._data.get("sudo", [])
 
     def add_sudo(self, user_id: int):
         sudo = self._data.setdefault("sudo", [])
@@ -157,9 +99,6 @@ class Database:
         if user_id in sudo:
             sudo.remove(user_id)
             self._save()
-
-    def is_sudo(self, user_id: int) -> bool:
-        return user_id in self._data.get("sudo", [])
 
 
 db = Database()
