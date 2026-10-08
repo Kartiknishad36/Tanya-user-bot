@@ -10,7 +10,7 @@ import sys
 import threading
 from flask import Flask
 
-from telethon import TelegramClient
+from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.errors import AuthKeyError
 
@@ -65,6 +65,7 @@ async def load_plugins(tg_client):
     plugins_dir = os.path.join(root, "plugins")
     loaded = 0
     failed = 0
+    failed_list = []
 
     if not os.path.isdir(plugins_dir):
         logger.warning("plugins/ folder not found")
@@ -77,14 +78,63 @@ async def load_plugins(tg_client):
                 module = __import__(f"plugins.{plugin_name}", fromlist=[plugin_name])
                 if hasattr(module, "register"):
                     module.register(tg_client)
-                loaded += 1
-                logger.info(f"Loaded plugin: {plugin_name}")
+                    loaded += 1
+                    logger.info(f"Loaded plugin: {plugin_name}")
+                else:
+                    logger.warning(f"No register() in {plugin_name}")
             except Exception as e:
                 failed += 1
+                failed_list.append(plugin_name)
                 logger.error(f"Failed to load {plugin_name}: {type(e).__name__}: {e}")
 
     logger.info(f"Plugins loaded: {loaded} | Failed: {failed}")
+    if failed_list:
+        logger.error(f"Failed plugins: {', '.join(failed_list)}")
     return loaded
+
+
+def register_builtin_commands(tg_client):
+    prefix = CMD_PREFIX
+
+    @tg_client.on(events.NewMessage(pattern=rf"^{prefix}ping$", outgoing=True))
+    async def builtin_ping(event):
+        await event.edit(f"**Pong!** `{BOT_NAME}` is alive")
+
+    @tg_client.on(events.NewMessage(pattern=rf"^{prefix}alive$", outgoing=True))
+    async def builtin_alive(event):
+        me = await tg_client.get_me()
+        await event.edit(
+            f"**{BOT_NAME}**\n"
+            f"**Status** \u00bb `ONLINE`\n"
+            f"**User** \u00bb `{me.first_name}`\n"
+            f"**Version** \u00bb `{BOT_VERSION}`\n"
+            f"**Prefix** \u00bb `{prefix}`"
+        )
+
+    @tg_client.on(events.NewMessage(pattern=rf"^{prefix}help(?: |$)", outgoing=True))
+    async def builtin_help(event):
+        text = (
+            f"**{BOT_NAME} Help**\n\n"
+            f"`{prefix}ping` \u2014 Check bot\n"
+            f"`{prefix}alive` \u2014 Status\n"
+            f"`{prefix}help` \u2014 This menu\n"
+            f"`{prefix}info` \u2014 User info\n"
+            f"`{prefix}id` \u2014 Get IDs\n\n"
+            f"**Prefix:** `{prefix}` | **v{BOT_VERSION}**"
+        )
+        await event.edit(text)
+
+    @tg_client.on(events.NewMessage(pattern=r"^/help(?: |$)", outgoing=True))
+    async def builtin_slash_help(event):
+        await builtin_help(event)
+
+    @tg_client.on(events.NewMessage(outgoing=True))
+    async def debug_outgoing(event):
+        text = event.raw_text or ""
+        if text.startswith(prefix) or text.startswith("/"):
+            logger.info(f"CMD received: {text[:80]!r} chat={event.chat_id}")
+
+    logger.info("Built-in commands registered: .ping .alive .help")
 
 
 async def main():
@@ -93,7 +143,7 @@ async def main():
     logger.info(f"Starting {BOT_NAME} v{BOT_VERSION}...")
 
     if not STRING_SESSION:
-        logger.error("STRING_SESSION is missing! Generate one using string_session.py")
+        logger.error("STRING_SESSION is missing!")
         sys.exit(1)
     if not API_ID or not API_HASH:
         logger.error("API_ID or API_HASH is missing!")
@@ -120,10 +170,9 @@ async def main():
         )
 
         if not OWNER_ID:
-            logger.warning(
-                f"OWNER_ID not set. Using logged-in user ({me.id}) as owner."
-            )
+            logger.warning(f"OWNER_ID not set. Using {me.id} as owner.")
 
+        register_builtin_commands(client)
         await load_plugins(client)
 
         try:
@@ -131,33 +180,32 @@ async def main():
                 client._tanya_started_msg = True
                 await client.send_message(
                     "me",
-                    "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n"
-                    "\u2551   \U0001f311 TANYA USERBOT STARTED     \u2551\n"
-                    "\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n"
-                    f"**\u26a1 Status** \u00bb `ONLINE`\n"
-                    f"**\U0001f464 User** \u00bb `{me.first_name}`\n"
-                    f"**\U0001f3f7\ufe0f Version** \u00bb `{BOT_VERSION}`\n"
-                    f"**\U0001f539 Prefix** \u00bb `{CMD_PREFIX}`\n"
-                    f"**\U0001f310 Port** \u00bb `{PORT}`\n\n"
-                    "**\U0001f311 Dark \u2022 Premium \u2022 Powerful**\n\n"
-                    f"Type `{CMD_PREFIX}help` for commands.\n"
-                    "\u2022\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Tanya UserBot \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2022",
+                    f"**{BOT_NAME} STARTED**\n\n"
+                    f"**Status** \u00bb `ONLINE`\n"
+                    f"**User** \u00bb `{me.first_name}`\n"
+                    f"**Version** \u00bb `{BOT_VERSION}`\n"
+                    f"**Prefix** \u00bb `{CMD_PREFIX}`\n"
+                    f"**Port** \u00bb `{PORT}`\n\n"
+                    f"Type `{CMD_PREFIX}ping` or `{CMD_PREFIX}help`",
                 )
         except Exception as e:
-            logger.warning(f"Could not send start message: {e}")
+            logger.warning(f"Start message failed: {e}")
 
         logger.info("Tanya UserBot is fully operational!")
         await client.run_until_disconnected()
 
     except AuthKeyError:
-        logger.error("Invalid STRING_SESSION! Please generate a new one.")
+        logger.error("Invalid STRING_SESSION!")
         sys.exit(1)
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         raise
     finally:
         if client:
-            await client.disconnect()
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
@@ -172,7 +220,7 @@ if __name__ == "__main__":
 
         loop.run_until_complete(main())
     except KeyboardInterrupt:
-        logger.info("Shutting down Tanya UserBot...")
+        logger.info("Shutting down...")
     except Exception as e:
         logger.error(f"Crash: {e}")
         sys.exit(1)

@@ -3,11 +3,15 @@ import time
 import math
 import psutil
 from datetime import datetime
-import pytz
+
+try:
+    import pytz
+    IST = pytz.timezone("Asia/Kolkata")
+except Exception:
+    IST = None
+
 from telethon import events
 from config import CMD_PREFIX, OWNER_ID
-
-IST = pytz.timezone("Asia/Kolkata")
 
 
 def get_readable_time(seconds: int) -> str:
@@ -26,17 +30,20 @@ def get_readable_time(seconds: int) -> str:
 
 
 def get_system_stats() -> dict:
-    cpu = psutil.cpu_percent(interval=0.5)
-    ram = psutil.virtual_memory()
-    disk = psutil.disk_usage("/")
-    boot = datetime.fromtimestamp(psutil.boot_time())
-    uptime = datetime.now() - boot
-    return {
-        "cpu": f"{cpu}%",
-        "ram": f"{ram.percent}% ({round(ram.used / 1024**3, 2)}/{round(ram.total / 1024**3, 2)} GB)",
-        "disk": f"{disk.percent}% ({round(disk.used / 1024**3, 2)}/{round(disk.total / 1024**3, 2)} GB)",
-        "uptime": str(uptime).split(".")[0],
-    }
+    try:
+        cpu = psutil.cpu_percent(interval=0.5)
+        ram = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        boot = datetime.fromtimestamp(psutil.boot_time())
+        uptime = datetime.now() - boot
+        return {
+            "cpu": f"{cpu}%",
+            "ram": f"{ram.percent}% ({round(ram.used / 1024**3, 2)}/{round(ram.total / 1024**3, 2)} GB)",
+            "disk": f"{disk.percent}% ({round(disk.used / 1024**3, 2)}/{round(disk.total / 1024**3, 2)} GB)",
+            "uptime": str(uptime).split(".")[0],
+        }
+    except Exception:
+        return {"cpu": "N/A", "ram": "N/A", "disk": "N/A", "uptime": "N/A"}
 
 
 def is_owner(event) -> bool:
@@ -44,13 +51,6 @@ def is_owner(event) -> bool:
 
 
 def command_pattern(cmd: str, flags: int = 0):
-    """
-    Create a command pattern with prefix.
-    Accepts:
-      - "help"              -> ^.help(?: |$)(.*)
-      - "help(?: |$)(.*)"   -> no double groups
-      - "del$"              -> ^.del$
-    """
     prefix = re.escape(CMD_PREFIX)
     if "(?:" in cmd or "(.*" in cmd:
         pattern = rf"^{prefix}{cmd}"
@@ -58,14 +58,17 @@ def command_pattern(cmd: str, flags: int = 0):
         pattern = rf"^{prefix}{cmd}"
     else:
         pattern = rf"^{prefix}{cmd}(?: |$)(.*)"
-    return events.NewMessage(pattern=pattern, outgoing=True, flags=flags)
+    return events.NewMessage(pattern=pattern, outgoing=True, forwards=False, flags=flags)
 
 
 async def edit_or_reply(event, text: str, **kwargs):
     try:
-        return await event.edit(text, **kwargs)
+        return await event.edit(text, parse_mode="md", **kwargs)
     except Exception:
-        return await event.reply(text, **kwargs)
+        try:
+            return await event.reply(text, parse_mode="md", **kwargs)
+        except Exception:
+            return await event.respond(text)
 
 
 def humanbytes(size: float) -> str:
@@ -78,27 +81,3 @@ def humanbytes(size: float) -> str:
         size /= power
         n += 1
     return f"{round(size, 2)} {units[n]}"
-
-
-async def progress(current, total, event, start, type_of_ps, file_name=None):
-    now = time.time()
-    diff = now - start
-    if round(diff % 10.00) == 0 or current == total:
-        percentage = current * 100 / total
-        speed = current / diff if diff > 0 else 0
-        eta = round((total - current) / speed) if speed > 0 else 0
-        progress_str = "[{0}{1}] {2}%\n".format(
-            "".join("\u25cf" for _ in range(math.floor(percentage / 5))),
-            "".join("\u25cb" for _ in range(20 - math.floor(percentage / 5))),
-            round(percentage, 2),
-        )
-        tmp = (
-            progress_str
-            + f"**Speed:** `{humanbytes(speed)}/s`\n"
-            + f"**ETA:** `{get_readable_time(eta)}`\n"
-            + f"**Progress:** `{humanbytes(current)} / {humanbytes(total)}`"
-        )
-        if file_name:
-            await edit_or_reply(event, f"**{type_of_ps}**\n\n**File:** `{file_name}`\n\n{tmp}")
-        else:
-            await edit_or_reply(event, f"**{type_of_ps}**\n\n{tmp}")
