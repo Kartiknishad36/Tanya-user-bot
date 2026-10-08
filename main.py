@@ -25,7 +25,6 @@ from config import (
     CMD_PREFIX,
 )
 
-# Logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -33,7 +32,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("TanyaUserBot")
 
-# ========== KEEP-ALIVE (Render Web Service) ==========
 app = Flask(__name__)
 
 
@@ -56,13 +54,15 @@ def run_flask():
     app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
 
 
-# Global client (set inside main after event loop exists)
 client = None
 
 
 async def load_plugins(tg_client):
-    """Load all plugins from plugins/ directory"""
-    plugins_dir = os.path.join(os.path.dirname(__file__), "plugins")
+    root = os.path.dirname(os.path.abspath(__file__))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+    plugins_dir = os.path.join(root, "plugins")
     loaded = 0
     failed = 0
 
@@ -81,7 +81,7 @@ async def load_plugins(tg_client):
                 logger.info(f"Loaded plugin: {plugin_name}")
             except Exception as e:
                 failed += 1
-                logger.error(f"Failed to load {plugin_name}: {e}")
+                logger.error(f"Failed to load {plugin_name}: {type(e).__name__}: {e}")
 
     logger.info(f"Plugins loaded: {loaded} | Failed: {failed}")
     return loaded
@@ -92,7 +92,6 @@ async def main():
 
     logger.info(f"Starting {BOT_NAME} v{BOT_VERSION}...")
 
-    # Validate env
     if not STRING_SESSION:
         logger.error("STRING_SESSION is missing! Generate one using string_session.py")
         sys.exit(1)
@@ -100,12 +99,10 @@ async def main():
         logger.error("API_ID or API_HASH is missing!")
         sys.exit(1)
 
-    # Start Flask keep-alive in background thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     logger.info(f"Keep-alive server started on port {PORT}")
 
-    # Create client INSIDE async context (fixes: no current event loop)
     client = TelegramClient(
         StringSession(STRING_SESSION),
         API_ID,
@@ -130,22 +127,24 @@ async def main():
         await load_plugins(client)
 
         try:
-            await client.send_message(
-                "me",
-                "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n"
-                "\u2551   \U0001f311 TANYA USERBOT STARTED     \u2551\n"
-                "\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n"
-                f"**\u26a1 Status** \u00bb `ONLINE`\n"
-                f"**\U0001f464 User** \u00bb `{me.first_name}`\n"
-                f"**\U0001f3f7\ufe0f Version** \u00bb `{BOT_VERSION}`\n"
-                f"**\U0001f539 Prefix** \u00bb `{CMD_PREFIX}`\n"
-                f"**\U0001f310 Port** \u00bb `{PORT}`\n\n"
-                "**\U0001f311 Dark \u2022 Premium \u2022 Powerful**\n\n"
-                f"Type `{CMD_PREFIX}help` for commands.\n"
-                "\u2022\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Tanya UserBot \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2022",
-            )
-        except Exception:
-            pass
+            if not getattr(client, "_tanya_started_msg", False):
+                client._tanya_started_msg = True
+                await client.send_message(
+                    "me",
+                    "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n"
+                    "\u2551   \U0001f311 TANYA USERBOT STARTED     \u2551\n"
+                    "\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n"
+                    f"**\u26a1 Status** \u00bb `ONLINE`\n"
+                    f"**\U0001f464 User** \u00bb `{me.first_name}`\n"
+                    f"**\U0001f3f7\ufe0f Version** \u00bb `{BOT_VERSION}`\n"
+                    f"**\U0001f539 Prefix** \u00bb `{CMD_PREFIX}`\n"
+                    f"**\U0001f310 Port** \u00bb `{PORT}`\n\n"
+                    "**\U0001f311 Dark \u2022 Premium \u2022 Powerful**\n\n"
+                    f"Type `{CMD_PREFIX}help` for commands.\n"
+                    "\u2022\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Tanya UserBot \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2022",
+                )
+        except Exception as e:
+            logger.warning(f"Could not send start message: {e}")
 
         logger.info("Tanya UserBot is fully operational!")
         await client.run_until_disconnected()
@@ -163,7 +162,6 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        # Python 3.10+ safe event loop setup
         try:
             loop = asyncio.get_event_loop()
             if loop.is_closed():

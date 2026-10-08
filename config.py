@@ -29,5 +29,5 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 # Bot Info
 BOT_NAME = "Tanya UserBot"
-BOT_VERSION = "1.0.0"
+BOT_VERSION = "2.0.0"
 BOT_CREATOR = "@Kartiknishad36"
